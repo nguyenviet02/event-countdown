@@ -5,6 +5,7 @@ import { EventView } from "./components/EventView";
 import { createEvent, getEvents } from "./lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotatePrompt } from "./components/RotatePrompt";
+import { Analytics } from "@vercel/analytics/react";
 
 interface AppEvent {
   name: string;
@@ -208,6 +209,7 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <Analytics />
     </div>
   );
 }
