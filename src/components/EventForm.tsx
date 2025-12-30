@@ -198,11 +198,6 @@ export const EventForm = ({ onSubmit, isLoading }: EventFormProps) => {
                     alt="Finish Preview"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <span className="text-white text-xs font-bold bg-indigo-600/80 px-2 py-1 rounded">
-                      Change Media
-                    </span>
-                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">

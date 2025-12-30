@@ -5,6 +5,7 @@ import { cn } from "../lib/utils";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { X } from "lucide-react";
+import Confetti from "react-confetti";
 
 interface EventViewProps {
   event: {
@@ -21,6 +22,10 @@ interface EventViewProps {
 export const EventView = ({ event, onReset }: EventViewProps) => {
   const timeLeft = useCountdown(event.targetDate);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   useEffect(() => {
     if (timeLeft.isFinished) {
@@ -28,8 +33,41 @@ export const EventView = ({ event, onReset }: EventViewProps) => {
     }
   }, [timeLeft.isFinished]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center text-white">
+      {/* Confetti */}
+      {showCelebration && (
+        <Confetti
+          width={windowSize.width}
+          height={windowSize.height}
+          recycle={false}
+          numberOfPieces={500}
+          gravity={0.3}
+          initialVelocityY={20}
+          colors={[
+            "#FFD700",
+            "#FF6B6B",
+            "#4ECDC4",
+            "#45B7D1",
+            "#FFA07A",
+            "#98D8C8",
+            "#F7DC6F",
+            "#BB8FCE",
+          ]}
+        />
+      )}
       {/* Background Media */}
       <div className="absolute inset-0 z-0">
         {/* Dynamic Media Rendering */}
@@ -95,8 +133,8 @@ export const EventView = ({ event, onReset }: EventViewProps) => {
             <FlipClock timeLeft={timeLeft} />
           ) : (
             <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
-              <div className="py-6 px-8 bg-black/40 backdrop-blur-md rounded-xl border border-white/10 text-center space-y-4">
-                <h3 className="text-2xl md:text-6xl font-bold text-white mb-4">
+              <div className="py-12 w-[60vw] bg-black/40 backdrop-blur-md rounded-xl border border-white/10 text-center space-y-4">
+                <h3 className="text-2xl md:text-6xl font-bold text-white mb-8">
                   {event.name}
                 </h3>
                 <p className="text-white/80 font-semibold text-xl">
@@ -114,15 +152,6 @@ export const EventView = ({ event, onReset }: EventViewProps) => {
           )}
         </motion.div>
 
-        {showCelebration && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1 }}
-          >
-            {/* Could add confetti here */}
-          </motion.div>
-        )}
       </div>
     </div>
   );
