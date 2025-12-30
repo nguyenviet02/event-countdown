@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import { EventForm } from "./components/EventForm";
 import { EventView } from "./components/EventView";
 import { createEvent, getEvents } from "./lib/api";
@@ -157,6 +157,13 @@ function App() {
     }
   };
 
+  const handleClearLocalStorage = () => {
+    if (confirm("Are you sure you want to clear all stored data?")) {
+      localStorage.clear();
+      setEvent(null);
+    }
+  };
+
   return (
     <div className="dark max-w-screen w-full min-h-screen bg-[#121212] flex items-center justify-center text-white relative">
       {event && <RotatePrompt />}
@@ -164,17 +171,26 @@ function App() {
         (window.navigator as any).standalone ||
         window.matchMedia("(display-mode: standalone)").matches
       ) && (
-        <button
-          onClick={toggleFullScreen}
-          className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm"
-          title="Toggle Full Screen"
-        >
-          {isFullScreen ? (
-            <Minimize2 className="w-5 h-5" />
-          ) : (
-            <Maximize2 className="w-5 h-5" />
-          )}
-        </button>
+        <>
+          <button
+            onClick={handleClearLocalStorage}
+            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm"
+            title="Clear Local Storage"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <button
+            onClick={toggleFullScreen}
+            className="absolute bottom-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm hidden md:block"
+            title="Toggle Full Screen"
+          >
+            {isFullScreen ? (
+              <Minimize2 className="w-5 h-5" />
+            ) : (
+              <Maximize2 className="w-5 h-5" />
+            )}
+          </button>
+        </>
       )}
       <AnimatePresence mode="wait">
         {!event ? (
