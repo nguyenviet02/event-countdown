@@ -196,7 +196,7 @@ function App() {
           </button>
           <button
             onClick={toggleFullScreen}
-            className="absolute bottom-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm hidden md:block"
+            className="absolute top-4 right-16 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm hidden md:block"
             title="Toggle Full Screen"
           >
             {isFullScreen ? (
