@@ -130,7 +130,8 @@ function App() {
       }
     } catch (error: any) {
       console.error("Failed to create event", error);
-      const errorMessage = error?.message || "Failed to create event. Please try again.";
+      const errorMessage =
+        error?.message || "Failed to create event. Please try again.";
       alert(errorMessage);
     } finally {
       setIsLoading(false);
@@ -182,18 +183,18 @@ function App() {
   return (
     <div className="dark max-w-screen w-full min-h-screen bg-[#121212] flex items-center justify-center text-white relative">
       {event && <RotatePrompt />}
+      <button
+        onClick={handleClearLocalStorage}
+        className="absolute top-4 right-4 z-9999 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm"
+        title="Clear Local Storage"
+      >
+        <X className="w-5 h-5" />
+      </button>
       {!(
         (window.navigator as any).standalone ||
         window.matchMedia("(display-mode: standalone)").matches
       ) && (
         <>
-          <button
-            onClick={handleClearLocalStorage}
-            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm"
-            title="Clear Local Storage"
-          >
-            <X className="w-5 h-5" />
-          </button>
           <button
             onClick={toggleFullScreen}
             className="absolute top-4 right-16 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-colors backdrop-blur-sm hidden md:block"
