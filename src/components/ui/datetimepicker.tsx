@@ -32,17 +32,32 @@ export function DateTimePicker({
       return;
     }
 
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     // If there was a previous date, preserve the time
     if (date) {
       newDate.setHours(date.getHours());
       newDate.setMinutes(date.getMinutes());
       newDate.setSeconds(date.getSeconds());
     } else {
-      // Default to current time if no previous date
-      const now = new Date();
-      newDate.setHours(now.getHours());
-      newDate.setMinutes(now.getMinutes());
+      // Default to current time + 1 hour if no previous date, or minimum 1 hour from now
+      const minTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+      newDate.setHours(minTime.getHours());
+      newDate.setMinutes(minTime.getMinutes());
       newDate.setSeconds(0);
+    }
+
+    // If the selected date is today, ensure the time is in the future
+    const selectedDateOnly = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
+    if (selectedDateOnly.getTime() === today.getTime()) {
+      if (newDate <= now) {
+        // Set to 1 hour from now if the selected time is in the past
+        const minTime = new Date(now.getTime() + 60 * 60 * 1000);
+        newDate.setHours(minTime.getHours());
+        newDate.setMinutes(minTime.getMinutes());
+        newDate.setSeconds(0);
+      }
     }
 
     setDate(newDate);
@@ -56,12 +71,16 @@ export function DateTimePicker({
 
     const [hours, minutes] = timeStr.split(":").map(Number);
 
-    let newDate = date ? new Date(date) : new Date(); // default to today if no date yet
+    const newDate = date ? new Date(date) : new Date(); // default to today if no date yet
     newDate.setHours(hours);
     newDate.setMinutes(minutes);
     newDate.setSeconds(0); // reset seconds
 
-    setDate(newDate);
+    // Only set the date if it's in the future
+    const now = new Date();
+    if (newDate > now) {
+      setDate(newDate);
+    }
   };
 
   // Format time for input value (HH:mm)
@@ -100,6 +119,20 @@ export function DateTimePicker({
               selected={date}
               captionLayout="dropdown"
               onSelect={handleDateSelect}
+              fromYear={1900}
+              toYear={2100}
+              disabled={(dateToCheck) => {
+                // Get today's date at midnight in local time
+                const today = new Date();
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                
+                // Get the date to check at midnight in local time
+                const checkDate = new Date(dateToCheck);
+                const checkDateStart = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+                
+                // Disable only dates that are strictly before today
+                return checkDateStart < todayStart;
+              }}
             />
           </PopoverContent>
         </Popover>

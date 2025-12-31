@@ -8,7 +8,12 @@ import { DateTimePicker } from "./ui/datetimepicker";
 
 const eventSchema = z.object({
   name: z.string().min(3, "Event name must be at least 3 characters"),
-  targetDate: z.string().refine((date) => new Date(date) > new Date(), {
+  targetDate: z.string().refine((date) => {
+    if (!date) return false;
+    const selectedDate = new Date(date);
+    const now = new Date();
+    return selectedDate > now;
+  }, {
     message: "Target date must be in the future",
   }),
   media: z
@@ -16,24 +21,10 @@ const eventSchema = z.object({
     .refine(
       (files) => files?.length === 1,
       "Background Image or Video is required"
-    )
-    .refine((files) => {
-      const file = files?.[0];
-      if (!file) return false;
-      if (file.type.startsWith("image/")) return file.size <= 5 * 1024 * 1024; // 5MB
-      if (file.type.startsWith("video/")) return file.size <= 10 * 1024 * 1024; // 10MB
-      return false;
-    }, `Background: Images max 5MB, Videos max 10MB.`),
+    ),
   finishMedia: z
     .any()
-    .refine((files) => files?.length === 1, "Finish Image or Video is required")
-    .refine((files) => {
-      const file = files?.[0];
-      if (!file) return false;
-      if (file.type.startsWith("image/")) return file.size <= 5 * 1024 * 1024; // 5MB
-      if (file.type.startsWith("video/")) return file.size <= 10 * 1024 * 1024; // 10MB
-      return false;
-    }, `Finish: Images max 5MB, Videos max 10MB.`),
+    .refine((files) => files?.length === 1, "Finish Image or Video is required"),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
