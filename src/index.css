@@ -303,3 +303,45 @@ html, body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Limit height of year dropdown in calendar */
+/* Note: For native HTML select elements, the dropdown list is browser-controlled */
+/* This CSS will work if react-day-picker uses custom dropdowns */
+
+/* Target the dropdown container */
+[data-slot="calendar"] .rdp-dropdown {
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Target select elements - limit their height when expanded */
+[data-slot="calendar"] .rdp-dropdowns select {
+  /* For native selects, we can't control dropdown height, but we style the element */
+}
+
+/* Custom scrollbar for dropdown containers */
+[data-slot="calendar"] .rdp-dropdown::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+[data-slot="calendar"] .rdp-dropdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+[data-slot="calendar"] .rdp-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+[data-slot="calendar"] .rdp-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Alternative: Use CSS to create a custom scrollable area for select options */
+/* This targets the select element's option list container if it exists */
+[data-slot="calendar"] select option {
+  padding: 4px 8px;
+}

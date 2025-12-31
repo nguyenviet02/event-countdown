@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { EventForm } from "./components/EventForm";
 import { EventView } from "./components/EventView";
-import { createEvent, getEvents } from "./lib/api";
+import { createEvent, getEvents, deleteAllEvents } from "./lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotatePrompt } from "./components/RotatePrompt";
 import { Analytics } from "@vercel/analytics/react";
@@ -100,6 +100,7 @@ function App() {
         finishMediaUrl: newEvent.finishMediaUrl,
         finishMediaType: newEvent.finishMediaType as "image" | "video",
       });
+      setIsLoading(false);
 
       // Enter full screen mode automatically
       const doc = document as any;
@@ -127,17 +128,24 @@ function App() {
           (window.screen as any).orientation.lock("landscape").catch(() => {});
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create event", error);
-      alert("Failed to create event. Please try again.");
+      const errorMessage = error?.message || "Failed to create event. Please try again.";
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleReset = () => {
-    localStorage.removeItem("events");
-    setEvent(null);
+  const handleReset = async () => {
+    try {
+      await deleteAllEvents();
+      // Also clear localStorage for migration cleanup
+      localStorage.removeItem("events");
+      setEvent(null);
+    } catch (error) {
+      console.error("Failed to reset events:", error);
+    }
 
     const doc = document as any;
     const cancelFullScreen =
@@ -157,10 +165,17 @@ function App() {
     }
   };
 
-  const handleClearLocalStorage = () => {
+  const handleClearLocalStorage = async () => {
     if (confirm("Are you sure you want to clear all stored data?")) {
-      localStorage.clear();
-      setEvent(null);
+      try {
+        await deleteAllEvents();
+        // Also clear localStorage for migration cleanup
+        localStorage.removeItem("events");
+        setEvent(null);
+      } catch (error) {
+        console.error("Failed to clear storage:", error);
+        alert("Failed to clear storage. Please try again.");
+      }
     }
   };
 
