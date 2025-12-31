@@ -133,7 +133,7 @@ export const EventView = ({ event, onReset }: EventViewProps) => {
             <FlipClock timeLeft={timeLeft} />
           ) : (
             <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
-              <div className="py-12 w-[60vw] bg-black/40 backdrop-blur-md rounded-xl border border-white/10 text-center space-y-4">
+              <div className="py-4 w-fit px-12 bg-black/40 backdrop-blur-[2px] rounded-xl border border-white/10 text-center space-y-4">
                 <h3 className="text-2xl md:text-6xl font-bold text-white mb-8">
                   {event.name}
                 </h3>

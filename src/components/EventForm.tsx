@@ -1,7 +1,7 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "../lib/utils";
 import { DateTimePicker } from "./ui/datetimepicker";
@@ -45,7 +45,9 @@ export const EventForm = ({ onSubmit, isLoading }: EventFormProps) => {
   });
 
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<"image" | "video" | null>(null);
   const [finishPreview, setFinishPreview] = useState<string | null>(null);
+  const [finishPreviewType, setFinishPreviewType] = useState<"image" | "video" | null>(null);
 
   const handleFormSubmit = (data: EventFormData) => {
     const formData = new FormData();
@@ -59,16 +61,42 @@ export const EventForm = ({ onSubmit, isLoading }: EventFormProps) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setPreview(URL.createObjectURL(file));
+      // Revoke previous URL to prevent memory leaks
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+      const url = URL.createObjectURL(file);
+      const type = file.type.startsWith("video") ? "video" : "image";
+      setPreview(url);
+      setPreviewType(type);
     }
   };
 
   const handleFinishFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFinishPreview(URL.createObjectURL(file));
+      // Revoke previous URL to prevent memory leaks
+      if (finishPreview) {
+        URL.revokeObjectURL(finishPreview);
+      }
+      const url = URL.createObjectURL(file);
+      const type = file.type.startsWith("video") ? "video" : "image";
+      setFinishPreview(url);
+      setFinishPreviewType(type);
     }
   };
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+      if (finishPreview) {
+        URL.revokeObjectURL(finishPreview);
+      }
+    };
+  }, [preview, finishPreview]);
 
   return (
     <motion.div
@@ -132,11 +160,20 @@ export const EventForm = ({ onSubmit, isLoading }: EventFormProps) => {
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-white/10 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-[#1a1a1a] hover:bg-gray-100 dark:hover:bg-[#252525] transition-colors overflow-hidden relative group">
               {preview ? (
                 <div className="absolute inset-0 w-full h-full">
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                  />
+                  {previewType === "video" ? (
+                    <video
+                      src={preview}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={preview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -184,11 +221,20 @@ export const EventForm = ({ onSubmit, isLoading }: EventFormProps) => {
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-white/10 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-[#1a1a1a] hover:bg-gray-100 dark:hover:bg-[#252525] transition-colors overflow-hidden relative group">
               {finishPreview ? (
                 <div className="absolute inset-0 w-full h-full">
-                  <img
-                    src={finishPreview}
-                    alt="Finish Preview"
-                    className="w-full h-full object-cover"
-                  />
+                  {finishPreviewType === "video" ? (
+                    <video
+                      src={finishPreview}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={finishPreview}
+                      alt="Finish Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">

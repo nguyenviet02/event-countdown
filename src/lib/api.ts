@@ -1,7 +1,26 @@
-// IndexedDB implementation
+// IndexedDB implementation with Blob storage
+
+interface StoredEvent {
+  id: string;
+  name: string;
+  targetDate: string;
+  mediaBlob?: Blob;
+  mediaType: "image" | "video";
+  finishMediaBlob?: Blob;
+  finishMediaType: "image" | "video";
+  createdAt: string;
+  // Legacy fields for migration
+  mediaUrl?: string;
+  finishMediaUrl?: string;
+}
+
+interface EventWithURLs extends Omit<StoredEvent, "mediaBlob" | "finishMediaBlob"> {
+  mediaUrl: string;
+  finishMediaUrl: string;
+}
 
 const DB_NAME = "EventCountdownDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Increment version to trigger migration
 const STORE_NAME = "events";
 
 // Initialize IndexedDB
@@ -19,30 +38,29 @@ const initDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const objectStore = db.createObjectStore(STORE_NAME, {
-          keyPath: "id",
-        });
-        objectStore.createIndex("createdAt", "createdAt", { unique: false });
+      // Delete old store if it exists (for migration)
+      if (db.objectStoreNames.contains(STORE_NAME)) {
+        db.deleteObjectStore(STORE_NAME);
       }
+      const objectStore = db.createObjectStore(STORE_NAME, {
+        keyPath: "id",
+      });
+      objectStore.createIndex("createdAt", "createdAt", { unique: false });
     };
   });
 };
 
-// Compress image to reduce storage size
-const compressImage = (
+// Compress image and return as Blob
+const compressImageToBlob = (
   file: File,
   maxWidth: number = 1920,
   maxHeight: number = 1080,
   quality: number = 0.8
-): Promise<string> => {
+): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith("image/")) {
-      // For non-images, just convert to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
+      // For non-images (videos), return the file as-is
+      resolve(file);
       return;
     }
 
@@ -78,8 +96,17 @@ const compressImage = (
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL(file.type, quality);
-        resolve(compressedDataUrl);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("Failed to compress image"));
+            }
+          },
+          file.type,
+          quality
+        );
       };
       img.onerror = (error) => reject(error);
       img.src = e.target?.result as string;
@@ -88,7 +115,20 @@ const compressImage = (
   });
 };
 
-// Migrate data from localStorage to IndexedDB
+// Convert base64 data URL to Blob (for migration)
+const dataURLToBlob = (dataURL: string): Blob => {
+  const arr = dataURL.split(",");
+  const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+};
+
+// Migrate data from localStorage to IndexedDB (convert base64 to Blobs)
 const migrateFromLocalStorage = async (): Promise<void> => {
   try {
     const stored = localStorage.getItem("events");
@@ -111,13 +151,26 @@ const migrateFromLocalStorage = async (): Promise<void> => {
     // Only migrate if IndexedDB is empty
     if (count === 0) {
       for (const event of events) {
-        store.add(event);
+        // Convert base64 strings to Blobs
+        const migratedEvent = {
+          ...event,
+          mediaBlob: event.mediaUrl ? dataURLToBlob(event.mediaUrl) : null,
+          finishMediaBlob: event.finishMediaUrl
+            ? dataURLToBlob(event.finishMediaUrl)
+            : null,
+          // Remove old base64 URLs
+          mediaUrl: undefined,
+          finishMediaUrl: undefined,
+        };
+        store.add(migratedEvent);
       }
       await new Promise<void>((resolve, reject) => {
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
       });
-      console.log(`Migrated ${events.length} events from localStorage to IndexedDB`);
+      console.log(
+        `Migrated ${events.length} events from localStorage to IndexedDB (converted to Blobs)`
+      );
     }
   } catch (error) {
     console.error("Migration error:", error);
@@ -135,7 +188,7 @@ const ensureDB = async (): Promise<IDBDatabase> => {
 };
 
 // Add event to IndexedDB
-const addEvent = async (event: any): Promise<void> => {
+const addEvent = async (event: StoredEvent): Promise<void> => {
   const db = await ensureDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], "readwrite");
@@ -158,7 +211,8 @@ const addEvent = async (event: any): Promise<void> => {
 };
 
 // Get all events from IndexedDB, sorted by createdAt (newest first)
-export const getEvents = async (): Promise<any[]> => {
+// Creates blob URLs from stored Blobs
+export const getEvents = async (): Promise<EventWithURLs[]> => {
   const db = await ensureDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], "readonly");
@@ -166,11 +220,27 @@ export const getEvents = async (): Promise<any[]> => {
     const index = store.index("createdAt");
     const request = index.openCursor(null, "prev"); // prev = descending order
 
-    const events: any[] = [];
+    const events: EventWithURLs[] = [];
     request.onsuccess = (event) => {
       const cursor = (event.target as IDBRequest).result;
       if (cursor) {
-        events.push(cursor.value);
+        const eventData = cursor.value as StoredEvent;
+        // Create blob URLs from stored Blobs
+        const processedEvent: EventWithURLs = {
+          id: eventData.id,
+          name: eventData.name,
+          targetDate: eventData.targetDate,
+          mediaType: eventData.mediaType,
+          finishMediaType: eventData.finishMediaType,
+          createdAt: eventData.createdAt,
+          mediaUrl: eventData.mediaBlob
+            ? URL.createObjectURL(eventData.mediaBlob)
+            : eventData.mediaUrl || "", // Fallback for old base64 data
+          finishMediaUrl: eventData.finishMediaBlob
+            ? URL.createObjectURL(eventData.finishMediaBlob)
+            : eventData.finishMediaUrl || "", // Fallback for old base64 data
+        };
+        events.push(processedEvent);
         cursor.continue();
       } else {
         resolve(events);
@@ -206,7 +276,21 @@ export const deleteEvent = async (id: string): Promise<void> => {
   });
 };
 
-export const createEvent = async (formData: FormData) => {
+// Revoke blob URLs (call this when cleaning up)
+export const revokeBlobURLs = (events: EventWithURLs[]): void => {
+  events.forEach((event) => {
+    if (event.mediaUrl && event.mediaUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(event.mediaUrl);
+    }
+    if (event.finishMediaUrl && event.finishMediaUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(event.finishMediaUrl);
+    }
+  });
+};
+
+export const createEvent = async (
+  formData: FormData
+): Promise<EventWithURLs> => {
   const name = formData.get("name") as string;
   const targetDate = formData.get("targetDate") as string;
   const mediaFile = formData.get("media") as File;
@@ -217,28 +301,38 @@ export const createEvent = async (formData: FormData) => {
   }
 
   try {
-    // Compress images before storing (videos are stored as-is)
-    const mediaUrl = await compressImage(mediaFile);
-    const mediaType = mediaFile.type.startsWith("video") ? "video" : "image";
-    const finishMediaUrl = await compressImage(finishMediaFile);
-    const finishMediaType = finishMediaFile.type.startsWith("video")
+    // Compress images and convert to Blobs (videos stored as-is)
+    const mediaBlob = await compressImageToBlob(mediaFile);
+    const mediaType: "image" | "video" = mediaFile.type.startsWith("video")
+      ? "video"
+      : "image";
+    const finishMediaBlob = await compressImageToBlob(finishMediaFile);
+    const finishMediaType: "image" | "video" = finishMediaFile.type.startsWith(
+      "video"
+    )
       ? "video"
       : "image";
 
-    const newEvent = {
+    const newEvent: StoredEvent = {
       id: Date.now().toString(),
       name,
       targetDate,
-      mediaUrl,
+      mediaBlob,
       mediaType,
-      finishMediaUrl,
+      finishMediaBlob,
       finishMediaType,
       createdAt: new Date().toISOString(),
     };
 
     await addEvent(newEvent);
-    return newEvent;
-  } catch (error: any) {
+
+    // Create blob URLs for immediate use
+    return {
+      ...newEvent,
+      mediaUrl: URL.createObjectURL(mediaBlob),
+      finishMediaUrl: URL.createObjectURL(finishMediaBlob),
+    };
+  } catch (error) {
     console.error("Save Error:", error);
     throw error;
   }
